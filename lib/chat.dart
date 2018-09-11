@@ -50,7 +50,6 @@ class ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   bool _userIsOnWindow;
   bool _isUserBlocked;
 
-
   List<ChatMessage> _messages = [];
   FirebaseDatabase database;
 
@@ -165,7 +164,8 @@ class ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
 
     //check user blocked or not
     if (_isUserBlocked) {
-
+      Fluttertoast.showToast(msg: 'You are blocked by the dispensarry. So you can\'t send a message until get unblocked!');
+      return;
     }
 
     else if (content
