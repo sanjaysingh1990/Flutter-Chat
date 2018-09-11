@@ -556,6 +556,14 @@ class ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
         .child(Utils.instance.userId)
         .child(chatUserId).remove();
 
+
+
+    //update current user last message nad time to 0
+    _chatUsersNodeRef.child(Utils.instance.userId).child(chatUserId).update(
+        {'created': 0});
+    _chatUsersNodeRef.child(Utils.instance.userId).child(chatUserId).update(
+        {'lastMessage': ""});
+
     setState(() {
       _messages.clear();
       isLoading = false;

@@ -151,6 +151,7 @@ class ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
             setState(() {
               _chatUsers[index].lastMessage = val['lastMessage'];
               _chatUsers[index].count = val['count'];
+              _chatUsers[index].createdAt = val['created'];
             });
           }
         }

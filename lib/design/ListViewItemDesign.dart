@@ -94,7 +94,7 @@ class ListViewItemDesign {
 
                   //last message time
                   new Text(
-                    "${Utils.instance.getFormatedTime(user.createdAt)}",
+                    user.createdAt!=0?"${Utils.instance.getFormatedTime(user.createdAt)}":"",
                     style: new TextStyle(fontSize: 13.0,
                         color: const Color(0xFF000000),
                         fontWeight: FontWeight.w400,

@@ -11,7 +11,7 @@ class ChatUser {
     this.userName,         //chat user name
     this.animationController});
 
-  final num createdAt;
+   num createdAt;
   String lastMessage;
   final String userId;
   int count;
