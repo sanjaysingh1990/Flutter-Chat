@@ -41,6 +41,7 @@ class ChatScreen extends StatefulWidget {
 
 class ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
 
+  bool _isLoading = true;
   final ScrollController _listScrollController = new ScrollController();
   List<ChatUser> _chatUsers = [];
   FirebaseDatabase database = FirebaseDatabase.instance;
@@ -61,16 +62,37 @@ class ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
 
     addListenerToReadMessages();
 
-   // _addUser("2");
+    // _addUser("2");
   }
 
 
   @override
   Widget build(BuildContext context) {
     // TODO: implement build
-    return _buildListMessage();
+    return
+
+      Stack(children: <Widget>[
+        _buildListMessage(),
+        buildLoading()
+
+      ]);
   }
 
+
+  Widget buildLoading() {
+    return Positioned(
+        child: _isLoading
+            ? Container(
+          child: Center(
+            child: CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(
+                    new Color(0xfff5a623))),
+          ),
+          color: Colors.white.withOpacity(0.8),
+        )
+            : Container()
+    );
+  }
 
   Widget _buildListMessage() {
     return new ListView.builder(
@@ -89,13 +111,11 @@ class ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
       duration: new Duration(milliseconds: 700),
       vsync: this,
     );
-    setState(() {
-      //  isLoading = true;
-    });
+
     FirebaseAuth.instance.signInAnonymously().then((user) {
       _chatUsersNodeRef.onChildAdded.listen((Event event) {
         var val = event.snapshot.value;
-        var _messagekey = val['userId'];
+
 
         //add chat user in list
         var chatUser = new ChatUser(
@@ -111,6 +131,7 @@ class ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
 
         );
         setState(() {
+           _isLoading=false;
           //add user in list and update it
           _chatUsers.insert(0, chatUser);
         });
@@ -132,7 +153,6 @@ class ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
               _chatUsers[index].count = val['count'];
             });
           }
-
         }
       });
     });
@@ -152,16 +172,13 @@ class ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
               _chatUsers.removeAt(index);
             });
           }
-
         }
       });
     });
   }
 
 
-
-  void _addUser(String chatUserId)
-  {
+  void _addUser(String chatUserId) {
     String msg="";
     var currentDateTime = 0;//new DateTime.now().millisecondsSinceEpoch;
 
@@ -174,7 +191,6 @@ class ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
       'isBlocked':0,
       'isOnChatScreen':0,
       'userName':'Mukesh Khulve'
-
     };
 
     var ChatUser = {
@@ -186,14 +202,11 @@ class ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
       'isBlocked':0,
       'isOnChatScreen':0,
       'userName':'Sanjay Singh Bisht'
-
     };
 
     //create user
     _chatUserReference.child(Utils.instance.userId).child(chatUserId).set(ChatUser);
     _chatUserReference.child(chatUserId).child(Utils.instance.userId).set(ToChatUser);
-
-
   }
 
 }

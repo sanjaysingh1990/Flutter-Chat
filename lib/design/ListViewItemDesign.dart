@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -7,7 +5,6 @@ import 'package:flutter_gplush_login/Utils/utils.dart';
 import 'package:flutter_gplush_login/chat.dart';
 import 'package:flutter_gplush_login/model/ChatUser.dart';
 import 'package:flutter_gplush_login/viewscreen/ChatUser.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 class ListViewItemDesign {
 
@@ -78,18 +75,10 @@ class ListViewItemDesign {
                     overflow: TextOverflow.ellipsis,
                   ), //user name
 
-                  //user name
+                  //last message
                   Padding(
                     padding: const EdgeInsets.only(top: 4.0, right: 8.0),
-                    child: new Text(
-                      user.lastMessage.isNotEmpty?"${user.lastMessage}":"No message",
-                      style: new TextStyle(fontSize: 12.0,
-                          color: const Color(0xFF000000),
-                          fontWeight: FontWeight.w300,
-                          fontFamily: "Roboto"),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
+                      child: _isMessageOrPhoto(user.lastMessage)
                   ), //user name
                 ],
               ),
@@ -154,6 +143,46 @@ class ListViewItemDesign {
 
       ),
     ); //end card here
+  }
+
+  //check for last message is text or image
+  Widget _isMessageOrPhoto(String message) {
+    return message.contains("Photo")
+        ?
+    //for photo last message
+    new Row(
+      children: <Widget>[
+        new Icon(
+            Icons.photo_camera,
+            color: Colors.orangeAccent,
+            size: 16.0),
+
+        Padding(
+          padding: const EdgeInsets.only(left: 4.0),
+          child: getTextWidget(message),
+        )
+
+      ],
+    )
+
+        :
+    //for other message
+    message.isNotEmpty ?
+    getTextWidget(message) //for normal message
+        :
+    getTextWidget("No message"); //for empty message
+  }
+
+  Widget getTextWidget(String message) {
+    return new Text(
+      message,
+      style: new TextStyle(fontSize: 13.0,
+          color: const Color(0xFF000000),
+          fontWeight: FontWeight.w400,
+          fontFamily: "Roboto"),
+      maxLines: 2,
+      overflow: TextOverflow.ellipsis,
+    );
   }
 
 

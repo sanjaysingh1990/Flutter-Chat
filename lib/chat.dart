@@ -8,43 +8,29 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_gplush_login/Utils/utils.dart';
 import 'package:flutter_gplush_login/const.dart';
+import 'package:flutter_gplush_login/dialog/DartDialog.dart';
 import 'package:flutter_gplush_login/model/ChatKeyModel.dart';
 import 'package:flutter_gplush_login/model/ChatMessage.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 final GlobalKey<ScaffoldState> _scaffoldKey = new GlobalKey<ScaffoldState>();
 
 class Chat extends StatelessWidget {
   final String chatUserId;
-
-
   Chat({Key key, @required this.chatUserId})
       : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    return new Scaffold(
-      key: _scaffoldKey,
-      appBar: new AppBar(
-        title: new Text(
-          'CHAT',
-          style: TextStyle(color: primaryColor, fontWeight: FontWeight.bold),
-        ),
-        centerTitle: true,
-      ),
-      body: new ChatScreen(
-        chatUserId: chatUserId,
-
-      ),
-    );
+    return new ChatScreen(chatUserId: chatUserId);
   }
 }
 
 class ChatScreen extends StatefulWidget {
   final String chatUserId;
+
 
   ChatScreen({Key key, @required this.chatUserId})
       : super(key: key);
@@ -62,11 +48,13 @@ class ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   String chatUserId;
   String userId;
   bool _userIsOnWindow;
+  bool _isUserBlocked;
+
 
   List<ChatMessage> _messages = [];
-  FirebaseDatabase database = FirebaseDatabase.instance;
-  DatabaseReference _messagesReference;
+  FirebaseDatabase database;
 
+  DatabaseReference _messagesReference;
   DatabaseReference _chatUsersNodeRef;
 
   //other
@@ -74,6 +62,14 @@ class ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   SharedPreferences prefs;
   File imageFile;
   bool isLoading;
+  int limit = 20;
+  bool isNoLoadMore = false;
+
+  //callback listener
+  var _listener1;
+  var _listener2;
+  var _listener3;
+  var _messageBackup = new Map();
 
 
   final TextEditingController textEditingController = new TextEditingController();
@@ -84,7 +80,12 @@ class ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   void initState() {
     super.initState();
 
+
     isLoading = false;
+    database = FirebaseDatabase.instance;
+    database.setPersistenceEnabled(true);
+    database.setPersistenceCacheSizeBytes(10000000); // 10MB cache is enough
+
 
     //set
     _messagesReference = FirebaseDatabase.instance.reference()
@@ -97,12 +98,15 @@ class ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
 
     //readLocal();
     addListenerToReadMessages();
+  }
 
-
-    database.setPersistenceEnabled(true);
-    database.setPersistenceCacheSizeBytes(10000000); // 10MB cache is enough
-
-
+  @override
+  void dispose() {
+    super.dispose();
+    //dispose listener
+    _listener1?.cancel();
+    _listener2?.cancel();
+    _listener3?.cancel();
   }
 
 
@@ -158,7 +162,15 @@ class ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
 
   void onSendMessage(String content, int type) {
     // type: 0 = text, 1 = image, 2 = sticker
-    if (content.trim().isNotEmpty) {
+
+    //check user blocked or not
+    if (_isUserBlocked) {
+
+    }
+
+    else if (content
+        .trim()
+        .isNotEmpty) {
       textEditingController.clear();
 
     } else {
@@ -221,7 +233,7 @@ class ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
 
      if(!_userIsOnWindow) {
        _chatUsersNodeRef.child(chatUserId).child(Utils.instance.userId).child('count').once().then((DataSnapshot snapshot) {
-        // print('Connected to second database and read ${snapshot.value}');
+         // //print('Connected to second database and read ${snapshot.value}');
          int count=snapshot.value;
          count++;
          //update message count
@@ -241,18 +253,18 @@ class ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
   }
 
   Widget buildItem(int index, ChatMessage chatMsg) {
-    print(userId == chatMsg.senderId);
+    //print(userId == chatMsg.senderId);
     if (userId == chatMsg.senderId) {
       // Right (my message) user message
-      return Row(
+      return Column(
         children: <Widget>[
           chatMsg.image == null //show message because image is null
           // Text
               ? Container(
             child: InkWell(
               onLongPress: () {
-                print(index);
-                print(_messages[index].message);
+                //print(index);
+                //print(_messages[index].message);
                 _showDialog(_messages[index], index);
               },
               child: Text(
@@ -265,7 +277,8 @@ class ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
             decoration: BoxDecoration(
                 color: greyColor2, borderRadius: BorderRadius.circular(8.0)),
             margin: EdgeInsets.only(
-                bottom: isLastMessageRight(index) ? 20.0 : 10.0, right: 10.0),
+                bottom: isLastMessageRight(index)
+                    ? 5.0 : 10.0, right: 10.0),
           )
               :
           // Image
@@ -305,20 +318,53 @@ class ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
               borderRadius: BorderRadius.all(Radius.circular(8.0)),
             ),
             margin: EdgeInsets.only(
-                bottom: isLastMessageRight(index) ? 20.0 : 10.0, right: 10.0),
+                bottom: isLastMessageRight
+                  (index) ? 5.0 : 10.0, right:
+            10.0),
+          ),
+
+          // Time
+          isLastMessageRight(index)
+              ?
+          Container(
+            child: Text(
+              Utils.instance.getFormatedTime(chatMsg.createdAt)
+              ,
+              style: TextStyle
+                (color: greyColor,
+                  fontSize: 12.0,
+                  fontStyle
+                      : FontStyle.italic),
+            ),
+            margin:
+            EdgeInsets
+                .
+            only
+              (
+                right
+                    :
+                10.0
+                ,
+                bottom
+                    :
+                10.0
+            )
+            ,
           )
-          // Sticker
-//                  : Container(
-//                      child: new Image.asset(
-//                        'images/${document['content']}.gif',
-//                        width: 100.0,
-//                        height: 100.0,
-//                        fit: BoxFit.cover,
-//                      ),
-//                      margin: EdgeInsets.only(bottom: isLastMessageRight(index) ? 20.0 : 10.0, right: 10.0),
-//                    ),
+              :
+          Container
+            (
+          )
+
+
         ],
         mainAxisAlignment: MainAxisAlignment.end,
+        crossAxisAlignment
+            :
+        CrossAxisAlignment
+            .
+        end
+        ,
       );
     } else {
       // Left (peer message)
@@ -414,9 +460,7 @@ class ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
             isLastMessageLeft(index)
                 ? Container(
               child: Text(
-                DateFormat('dd MMM kk:mm')
-                    .format(DateTime.fromMillisecondsSinceEpoch(
-                    int.parse(chatMsg.createdAt.toString()))),
+                Utils.instance.getFormatedTime(chatMsg.createdAt),
                 style: TextStyle(color: greyColor,
                     fontSize: 12.0,
                     fontStyle: FontStyle.italic),
@@ -453,8 +497,32 @@ class ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      children: <Widget>[
+    return new Scaffold(
+        key: _scaffoldKey,
+        appBar: new AppBar(
+          title: new Text(
+            'CHAT',
+            style: TextStyle(color: primaryColor, fontWeight: FontWeight.bold),
+          ),
+          actions: <Widget>[
+            // action button
+            IconButton(
+              icon: Icon(Icons.delete, color: Colors.red,),
+              onPressed: () {
+                _choice();
+              },
+            ),
+
+          ],
+          automaticallyImplyLeading: true,
+          centerTitle: true,
+
+        ),
+
+        body:
+
+        new Stack(
+          children: <Widget>[
         Column(
           children: <Widget>[
             // List of messages
@@ -467,8 +535,31 @@ class ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
 
         // Loading
         buildLoading()
-      ],
+          ],
+        )
+
     );
+  }
+
+
+  void _choice() {
+    //show dialog before deleting message
+    new DartDialog().showWarningDialogDeleteChat(
+        _scaffoldKey.currentContext, deleteChat);
+  }
+
+  VoidCallback deleteChat() {
+    setState(() {
+      isLoading = true;
+    });
+    FirebaseDatabase.instance.reference()
+        .child(Utils.instance.userId)
+        .child(chatUserId).remove();
+
+    setState(() {
+      _messages.clear();
+      isLoading = false;
+    });
   }
 
   Widget buildSticker() {
@@ -589,7 +680,7 @@ class ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
           ? Container(
         child: Center(
           child: CircularProgressIndicator(
-              valueColor: AlwaysStoppedAnimation<Color>(themeColor)),
+              valueColor: AlwaysStoppedAnimation<Color>(new Color(0xfff5a623))),
         ),
         color: Colors.white.withOpacity(0.8),
       )
@@ -678,18 +769,71 @@ class ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
       ),);
   }
 
+  void loadMore(String lastid) {
+    if (isNoLoadMore) {
+      return; //no data for load more
+    }
+    limit = limit + 10;
+    setState(() {
+      isLoading = true;
+    });
+    print("limit:$limit");
+    //on child change
+    FirebaseAuth.instance.signInAnonymously().then((user) {
+      _messagesReference.orderByKey().limitToLast(limit).once().then((
+          DataSnapshot snapshot) {
+        print("data received ${snapshot.value}");
+        Map<dynamic, dynamic> fridgesDs = snapshot.value;
+        List<dynamic> list = fridgesDs.values.toList()
+          ..sort((a, b) => b['created'].compareTo(a['created']));
+
+        for (var value in list) {
+          var key = value["messageId"];
+          print("lm :$key");
+          bool isInside = false;
+          if (!_messageBackup.containsKey(key)) {
+            isInside = true;
+            _messageBackup[key] = "chat";
+            setState(() {
+              getMessage(key, true);
+            });
+          }
+
+          if (isInside) {
+            isNoLoadMore = false; //data available for load more
+          }
+          else {
+            isNoLoadMore = true; //data not available for load more
+          }
+        }
+//        fridgesDs.forEach((key, value) {
+//
+//
+//        });
+
+        setState(() {
+          isLoading = false;
+        });
+      });
+    });
+  }
+
   void addListenerToReadMessages() {
     setState(() {
       isLoading = true;
     });
     //on child change
     FirebaseAuth.instance.signInAnonymously().then((user) {
-      _messagesReference.onChildAdded.listen((Event event) {
+      _listener1 = _messagesReference
+          .limitToLast(limit)
+          .onChildAdded
+          .listen((Event event) {
 
         var val = event.snapshot.value;
         var _messagekey = val['messageId'];
         print(_messagekey);
-        getMessage(_messagekey);
+        _messageBackup[_messagekey] = "message";
+        getMessage(_messagekey, false);
       });
 
       setState(() {
@@ -700,8 +844,7 @@ class ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
 
     //on chat screen user
     FirebaseAuth.instance.signInAnonymously().then((user) {
-
-      _chatUsersNodeRef
+      _listener2 = _chatUsersNodeRef
           .child(chatUserId)
           .child(userId)
           .child("isOnChatScreen")
@@ -709,14 +852,29 @@ class ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
           .listen((Event event) {
         var val = event.snapshot.value;
         _userIsOnWindow = val == 1 ? true : false;
-        print("is user onine :$val");
+        //print("is user onine :$val");
+      });
+    });
+
+
+    //on check for block condition
+    FirebaseAuth.instance.signInAnonymously().then((user) {
+      _listener3 = _chatUsersNodeRef
+          .child(chatUserId)
+          .child(userId)
+          .child("isBlocked")
+          .onValue
+          .listen((Event event) {
+        var val = event.snapshot.value;
+        _isUserBlocked = val == 1 ? true : false;
+        print("is user blocked :$val");
       });
     });
 
 //    FirebaseAuth.instance.signInAnonymously().then((user) {
 //      _messagesReference.child("messageId").orderByKey().once().then((DataSnapshot snapshot) {
 //
-//        print('Connected to second database and read ${snapshot.value}');
+//        //print('Connected to second database and read ${snapshot.value}');
 //      });
 //    });
 
@@ -726,16 +884,20 @@ class ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
           double maxScroll = listScrollController.position.maxScrollExtent;
           double currentScroll = listScrollController.position.pixels;
           double delta = 200.0; // or something else..
-          print(maxScroll.toString() + currentScroll.toString());
+          //print(maxScroll.toString() + currentScroll.toString());
           if (maxScroll - currentScroll <=
               delta) { // whatever you determine here
-            //.. load more
+            // //print("max scroll:$maxScroll, current scroll:$currentScroll");
+            if (maxScroll == currentScroll) {
+              print("reached top");
+              loadMore("");
+            }
           }
         }
     );
   }
 
-  Future<ChatKeyModel> getMessage(String messageKey) async {
+  Future<ChatKeyModel> getMessage(String messageKey, bool loadmore) async {
     Completer<ChatKeyModel> completer = new Completer<ChatKeyModel>();
 
     setState(() {
@@ -756,7 +918,8 @@ class ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
           msgId: val['messageId'],
           recId: val['recieverId'],
           sendId: val['senderId'],
-          imageUrl: val['image']);
+          imageUrl: val['image'],
+          isLoadmore: loadmore);
     });
 
     return completer.future;
@@ -768,14 +931,15 @@ class ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
     String msgId,
     String recId,
     String sendId,
-    String imageUrl
+    String imageUrl,
+    bool isLoadmore
 
   }) {
     var animationController = new AnimationController(
       duration: new Duration(milliseconds: 700),
       vsync: this,
     );
-
+    print("read message $msg");
     var message = new ChatMessage(
         createdAt: created,
         message: msg,
@@ -785,7 +949,11 @@ class ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
         image: imageUrl,
         animationController: animationController);
     setState(() {
-      _messages.insert(0, message);
+      if (!isLoadmore)
+        _messages.insert(0, message);
+      else
+        _messages.add(message);
+
     });
 
     if (imageUrl != null) {
@@ -839,7 +1007,7 @@ class ChatScreenState extends State<ChatScreen> with TickerProviderStateMixin {
             new FlatButton(
               child: new Text("UPDATE"),
               onPressed: () {
-                print(chatMsg.messageId);
+                //print(chatMsg.messageId);
                 String msg = myController.text;
 
                 var currentDateTime = new DateTime.now().millisecondsSinceEpoch;
